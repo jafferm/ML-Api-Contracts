@@ -36,14 +36,33 @@ def load_weights_and_predict(model, weights, input_data):
     model.load_weights(weights)
     return model.predict(input_data)
 
-# Excel sheet column 6
+# Excel sheet row 6
 @new_contract
 def reference_to_model_input_contract(ref):
     if ref != model.input:
         raise ContractException("Reference should be made to the model's input.")
     
-# excel sheet column 7
+# excel sheet row 7
 @new_contract
 def contract_checker1(model):
     if not model.layers[0].input_shape is None:
         raise ContractException("Input shape not specified for the first layer.")
+    
+#excel sheet row 10
+@new_contract
+def batch_norm_order(model):
+     dense_flag = False
+     batch_flag = False
+
+     for layer in model.layers:
+        if isinstance(layer, layers.Dense):
+            dense_flag = True
+            batch_flag = False
+        elif isinstance(layer, layers.BatchNormalization):
+            if not dense_flag:
+                raise ValueError("BatchNormalization must follow Dense layer.")
+            batch_flag = True
+        elif isinstance(layer, layers.Activation):
+            if not dense_flag or batch_flag:
+                raise ValueError("Activation must follow BatchNormalization which follows Dense layer.")
+            
