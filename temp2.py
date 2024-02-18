@@ -66,3 +66,24 @@ def batch_norm_order(model):
             if not dense_flag or batch_flag:
                 raise ValueError("Activation must follow BatchNormalization which follows Dense layer.")
             
+
+#excel sheet row 12
+@new_contract
+def contract_checker_PReLU(model):
+    found_prelu = False
+
+    for layer in model.layers[::-1]:
+        if isinstance(layer, layers.PReLU):
+            found_prelu = True
+            break
+
+    if found_prelu:
+        print("PReLU layer added directly to the model using add() method.")
+    else:
+        print("PReLU layer may not be added directly using add() method or it's wrapped with Activation class.")
+
+#excel sheet row 13
+@new_contract
+def contract_check_add_after_compile(model):
+    if model.compiled:
+        raise ContractException("Layers cannot be added to the model after compilation.")
