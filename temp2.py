@@ -45,45 +45,56 @@ def reference_to_model_input_contract(ref):
 # excel sheet row 7
 @new_contract
 def contract_checker1(model):
-    if not model.layers[0].input_shape is None:
-        raise ContractException("Input shape not specified for the first layer.")
-    
+    concatenate_layers = [layer for layer in model.layers if isinstance(layer, Concatenate)]
+
+    for concatenate_layer in concatenate_layers:
+        if concatenate_layer.input_shape is None or None in concatenate_layer.input_shape:
+            raise ContractException("Input shape not specified for a Concatenate layer.")
+
 #excel sheet row 10
 @new_contract
 def batch_norm_order(model):
-     dense_flag = False
-     batch_flag = False
+    for i in range(1, len(model.layers) - 1):  # Iterate from the second layer to the second-to-last layer
+     current_layer = model.layers[i]
+     previous_layer = model.layers[i - 1]
+     next_layer = model.layers[i + 1]
 
-     for layer in model.layers:
-        if isinstance(layer, layers.Dense):
-            dense_flag = True
-            batch_flag = False
-        elif isinstance(layer, layers.BatchNormalization):
-            if not dense_flag:
-                raise ValueError("BatchNormalization must follow Dense layer.")
-            batch_flag = True
-        elif isinstance(layer, layers.Activation):
-            if not dense_flag or batch_flag:
-                raise ValueError("Activation must follow BatchNormalization which follows Dense layer.")
+     if isinstance(current_layer, BatchNormalization):
+            if isinstance(previous_layer, Dense) and not isinstance(next_layer, Dense):
+                break
+            else:
+                    raise ContractException("Invalid layer configuration: The layer before Batch Normalization should be Dense(linear-layer), and the layer after should be non-linear.")
             
 
 #excel sheet row 12
 @new_contract
 def contract_checker_PReLU(model):
-    found_prelu = False
+    for layer in model.layers:
+        if isinstance(layer, PReLU):
+        # Check if PReLU layer is wrapped with an activation layer
+            if len(layer._layers) > 0 and isinstance(layer._layers[0], Activation):
+                raise ContractException("PReLU layer is wrapped with an Activation layer.")
 
-    for layer in model.layers[::-1]:
-        if isinstance(layer, layers.PReLU):
-            found_prelu = True
-            break
+#excel sheet row 16
+@new_contract           
+def contract_check_sequential_model(model,input_data, target_data):
+    # Check if the model's output dimensions match target data dimensions
+    msg1=""
+    msg2=""
+    model_output = model.predict(input_data)
+    if model_output.shape[1] != target_data.shape[1]:
+        # Check if the LSTM layer has return sequence set to true
+        lstm_layers = [layer for layer in model.layers if isinstance(layer, LSTM)]
 
-    if found_prelu:
-        print("PReLU layer added directly to the model using add() method.")
-    else:
-        print("PReLU layer may not be added directly using add() method or it's wrapped with Activation class.")
+        for lstm_layer in lstm_layers:
+            if not lstm_layer.return_sequences:
+                msg1+="LSTM layer {lstm_layer.name} does not have return_sequences set to True."
+                
+        # Check if the Dense layer is wrapped in TimeDistributed
+        dense_layers = [layer for layer in model.layers if isinstance(layer, Dense)]
 
-#excel sheet row 13
-@new_contract
-def contract_check_add_after_compile(model):
-    if model.compiled:
-        raise ContractException("Layers cannot be added to the model after compilation.")
+        for dense_layer in dense_layers:
+             if not any(isinstance(wrapper, TimeDistributed) for wrapper in dense_layer._layers):
+                msg2+="Dense layer {dense_layer.name} is not wrapped in TimeDistributed."
+    raise ContractException(msg1+msg2)
+ 
