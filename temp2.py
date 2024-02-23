@@ -1,7 +1,8 @@
 from keras.models import Sequential
 from keras.wrappers.scikit_learn import KerasRegressor
 from contracts import contract, new_contract
-
+from keras import backend as K
+import numpy as np
 from contract_checker_library import ContractException  # Assuming you have a ContractException class in your library
 ## For Post 3
 # Define a contract checking function for build_fn
@@ -98,3 +99,49 @@ def contract_check_sequential_model(model,input_data, target_data):
                 msg2+="Dense layer {dense_layer.name} is not wrapped in TimeDistributed."
     raise ContractException(msg1+msg2)
  
+#this week
+ #excel sheet row 17
+@new_contract
+def contract_check_concat_parameters(input_b, intermediate_from_a):
+    # Get the output shapes of the two layers
+    if isinstance(intermediate_from_a, np.ndarray):
+        raise ContractException("intermediate_from_a is a NumPy array. Do not use predict()")
+    else:
+        shape1 = K.int_shape(input_b)
+        shape2 = K.int_shape(intermediate_from_a)
+
+        # Check if the dimensions are compatible for concatenation
+        if shape1 and shape2 and shape1[1] == shape2[1]:
+            return True
+        else:
+            raise ContractException("The dimensions of the two layers are not compatible for concatenation.")
+
+#excel sheet row 19 
+@new_contract
+def contract_cnn_with_lstm(model):
+    # Check if the model has a convolutional layer followed by an LSTM layer
+    for i in range(0, len(model.layers) - 1):  # Iterate from the first layer to the second-to-last layer
+     current_layer = model.layers[i]
+     next_layer = model.layers[i + 1]
+     if isinstance(current_layer, Conv2D):
+            if isinstance(next_layer, LSTM):
+                cnn_output_shape = current_layer.output_shape
+                lstm_input_shape = next_layer.input_shape
+                # Check if the output shape of the CNN and input shape of the LSTM are compatible
+                if cnn_output_shape[-1] != lstm_input_shape[-1]:
+                    raise ContractException("Output shape of Conv2D do not match input shape of LSTM, Use 'TimeDistributed' to wrapper on the CNN layer.")
+
+#excel sheet row 22
+@new_contract
+def check_reset_weights(model):
+    initial_weights = tf.keras.models.load_model('initial_weights.h5').get_weights()
+    #This loop iterates over the layers of the model and the corresponding initial weights loaded from the saved file.
+    for layer, initial_weight in zip(model.layers, initial_weights):
+            current_weight = layer.get_weights()
+            #This line checks whether all elements of the current_weight tensor are equal to the initial_weight tensor using TensorFlow operations.
+            if not tf.reduce_all(tf.equal(current_weight, initial_weight)):
+                raise ContractException("Weights are not reset to initial weights.")
+
+    
+    
+    
