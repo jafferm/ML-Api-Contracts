@@ -142,6 +142,53 @@ def check_reset_weights(model):
             if not tf.reduce_all(tf.equal(current_weight, initial_weight)):
                 raise ContractException("Weights are not reset to initial weights.")
 
+#excel sheet row 25
+@new_contract
+def check_BN_updateOps(model, X_train, y_train):
+    # Start a TensorFlow session
+    with tf.compat.v1.Session() as sess:
+        # Initialize variables
+        sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Get the update operations
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+        # Run the update operations and the forward pass
+        sess.run([update_ops, model.output], feed_dict={model.input: X_train, model.output: y_train})
+
+        # Check if update operations were executed
+        if not update_ops:
+            raise ContractException("Batch Normalization statistics are not updated during training. "
+                                    "You need to manually add the update operations.")    
     
+#excel sheet row 65
+@new_contract
+def check_mergeLayer_input(model):
+    for layer in model.layers:
+        if isinstance(layer, Merge):
+            # Access the inputs property of the merge layer
+            input_types = layer.inputs
+
+            # Check if the input types are instances of Keras models
+            for input_type in input_types:
+                if  isinstance(input_type, Model):
+                    raise ContractException("Use functional API merge layers Add() or substract()"
+                                             " to merge output of two models")
+                
+#excel sheet row 72
+@new_contract
+def check_multi_initialization(model):
+    if K.backend() == 'tensorflow':
+        raise ContractException("The Backend used is tensorflow, please use clear_session()"
+                                " after usage of model in loop ")
     
-    
+#excel sheet row 81
+@new_contract
+def check_spatial_dimension(model):
+    for layer in model.layers:
+        if isinstance(layer, Conv1D):
+            if layer.input is not None and (len(layer.input_shape) < 3):
+                raise ContractException("The layer does not have a spatial dimension in its input shape. "
+                                "Expected input shape (batch_size, steps, features).")
+            
+#excel sheet row 84
