@@ -184,11 +184,48 @@ def check_multi_initialization(model):
     
 #excel sheet row 81
 @new_contract
-def check_spatial_dimension(model):
+def check_conv1d_input_shape(model):
     for layer in model.layers:
         if isinstance(layer, Conv1D):
-            if layer.input is not None and (len(layer.input_shape) < 3):
+            if layer.input_shape is not None and (len(layer.input_shape) != 3):
                 raise ContractException("The layer does not have a spatial dimension in its input shape. "
                                 "Expected input shape (batch_size, steps, features).")
             
 #excel sheet row 84
+@new_contract
+def check_conv2d_input_shape(model):
+    for layer in model.layers:
+        if isinstance(layer, Conv2D):
+            if layer.input_shape is not None and (len(layer.input_shape) != 3):
+                raise ContractException("input_shape should contain 3 dimensions only,"
+                                        " Expected input shape (height, width, channels).")
+
+#excel sheet row 89
+@new_contract
+def check_embedding_argument(model,data):
+    # Create a Tokenizer
+    tokenizer = Tokenizer()
+    # Fit the tokenizer on the text data
+    tokenizer.fit_on_texts(data)
+    # Vocabulary size
+    vocab_size = len(tokenizer.word_counts) + 1  # Add 1 for the reserved index
+    for layer in model.layers:
+        if isinstance(layer, Embedding):
+            # Retrieve the configuration of the Embedding layer
+            embedding_config = layer.get_config()
+            # Access the first argument (input_dim) from the configuration
+            input_dim = embedding_config['input_dim']
+            if input_dim != vocab_size:
+                raise ContractException("The first argument provided to the Embedding layer"
+                                        " should be the vocabulary size+1.")
+            
+#excel sheet row 92 
+@new_contract
+def check_lstm_input_shape(model):
+    
+    for layer in model.layers:
+        if isinstance(layer, LSTM):
+            input_shape = layer.input_shape
+            if len(input_shape) != 3:
+                raise ContractException("Invalid input shape for LSTM layer. "
+                                        "Expected input shape (batch_size, timesteps, input_dim), ")
