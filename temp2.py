@@ -150,7 +150,7 @@ def check_BN_updateOps(model, X_train, y_train):
         # Initialize variables
         sess.run(tf.compat.v1.global_variables_initializer())
 
-        # Get the update operations
+        # Get the update operations from model
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         # Run the update operations and the forward pass
@@ -229,3 +229,78 @@ def check_lstm_input_shape(model):
             if len(input_shape) != 3:
                 raise ContractException("Invalid input shape for LSTM layer. "
                                         "Expected input shape (batch_size, timesteps, input_dim), ")
+            
+#excel sheet row 99
+@new_contract
+def check_rnn_input_shape(model):
+    for layer in model.layers:
+        if isinstance(layer, keras.layers.recurrent.RNN):
+            # Access the input shape of the RNN layer
+            input_shape = layer.input_shape
+            if len(input_shape) == 2:
+                # Check if num_features are specified
+                num_timesteps, num_features = input_shape
+                if  num_features is None:
+                    raise ContractException("The num_features should be specified in the input shape.")
+            elif len(input_shape) == 3:
+                # Check if num_features are specified
+                num_samples,num_timesteps, num_features = input_shape
+                if  num_features is None:
+                    raise ContractException("The num_features should be specified in the input shape.")
+            else:
+                raise ContractException("Invalid input shape for RNN layer. "
+                                        "Expected input shape (num_timesteps, num_features) or" 
+                                        "(num_samples, num_timesteps, num_features), ")
+            
+#excel sheet row 103
+@new_contract
+def check_model_input_shape(model):
+    if isinstance(model, Sequential):
+        layer=model.layers[0]
+        # Check if the input_shape attribute exists and is not None
+        if not hasattr(layer, 'input_shape') or layer.input_shape is None:
+            raise ContractException("The input shape of the first layer should be explicitly specified.")
+
+#excel sheet row 104
+@new_contract
+def check_add_method(model):
+    """checks whether the add method is present and callable,
+       which would indicate that layers have been added to the model using the add method.
+    """
+    if hasattr(model, 'add') and callable(getattr(model, 'add', None)):
+        if not isinstance(model, Sequential):
+            raise ContractException("In order to add layers to a model, using add method the model should "
+                                     "be a Sequential model. In case of loading a saved model, create a "
+                                     "new Sequential model then add loaded model, then you can use add method"
+                                      " to add layers") 
+        
+#excel sheet row 105
+@new_contract
+def check_load_weights_method(model):
+    """
+    Check if the model variable has the load_weights method call like model.load_weights().
+    Then check if the variable is a Keras Model before trying to load weights.
+
+    Parameters:
+    - model: The loaded model object.
+    """
+    if hasattr(model, 'load_weights') or callable(getattr(model, 'load_weights', None)):
+        if not isinstance(model, Model):
+            raise ContractException("In order to load weights to a model, the model should be a Keras Model."
+                                    "Try to create or load the model before loading weights.")
+
+#excel sheet row 109
+@new_contract
+def is_custom_loss(model):
+    # Get the compile arguments of the model
+    compile_args = model.compile_args
+
+    # Check if 'loss' key is present and corresponds to a callable object
+    if 'loss' in compile_args and callable(compile_args['loss']):
+        return True
+    else:
+        raise ContractException("If the loss function is a custom loss function, "
+                                "then pass it as a function object, not a string.")
+
+
+    
