@@ -302,5 +302,64 @@ def is_custom_loss(model):
         raise ContractException("If the loss function is a custom loss function, "
                                 "then pass it as a function object, not a string.")
 
+#excel sheet row 113: 
+@new_contract
+def check_confusion_matrix_input(y_test, y_pred):
+    """
+    Check if the input to confusion_matrix is in the correct format.
 
+    checks if the inputs have more than one dimension, which is a common 
+    characteristic of one-hot encoded arrays.
+    """
+    if y_test.ndim != 1 or y_pred.ndim != 1:
+        raise ContractException("Input must be an array of int, not one hot encodings")
+    #check ifinput is an integer array
+    if not np.issubdtype(y_test.dtype, np.integer) and np.issubdtype(y_pred.dtype, np.integer):
+        raise ContractException("Input must be an array of int .")
+    
+#excel sheet row 114:
+@new_contract
+def check_evaluate_assignment(result):
+    """
+    Check if the user has assigned a pair of variables to the result of 'model.evaluate'.
+    """
+    if isinstance(result, tuple) and len(result) > 1:
+        raise ContractException("Assigning a pair of variables to the result of 'model.evaluate' is not allowed. "
+                                "Use a single variable to capture the result.")
+
+#excel sheet row 121
+@new_contract
+def check_input_shape(model, X):
+    """
+    Check if the input data shape matches the expected input shape of the model.
+
+    Parameters:
+        - model: The Keras model.
+        - X: The input data.
+
+    Raises:
+        - ContractException: If the input data shape does not match the expected input shape.
+    """
+    expected_input_shape = model.input_shape[1:]  # Exclude batch size
+    actual_input_shape = X.shape[1:]
+
+    if expected_input_shape != actual_input_shape:
+        raise ContractException(f"Input data shape {actual_input_shape} does not match "
+                                f"the expected input shape {expected_input_shape} of the model.")
+
+#excel sheet row 126
+@new_contract
+def check_normalized_input(data):
+    """
+    Check if the input data is properly normalized.
+
+    """
+    # Check if the data is a numpy array
+    if not isinstance(data, np.ndarray):
+        raise ContractException("Input data must be a NumPy array.")
+    
+    # Check if the data is in the range [0, 1]
+    if not (np.min(data) >= 0 and np.max(data) <= 1):
+        raise ContractException("Input data must be normalized between 0 and 1.")
+    
     
