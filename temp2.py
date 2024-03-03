@@ -362,4 +362,28 @@ def check_normalized_input(data):
     if not (np.min(data) >= 0 and np.max(data) <= 1):
         raise ContractException("Input data must be normalized between 0 and 1.")
     
+#excel sheet row 143
+@contract
+def check_build_fn_parameter(classifier: KerasClassifier):
+    """
+    Check the build_fn parameter of a KerasClassifier.
+    """
+    build_fn = classifier.build_fn
+
+    if not callable(build_fn):
+        raise ContractException("build_fn must be a callable (function or class instance).")
+
+    if inspect.isclass(build_fn):
+        # If build_fn is a class, check if it has a __call__ method
+        if not hasattr(build_fn, '__call__'):
+            raise ContractException("If build_fn is a class, it must have a __call__ method.")
+
+        # Check if the instance of the class returns a compiled Keras model
+        instance = build_fn()
+        if not isinstance(instance, Model):
+            raise ContractException("The __call__ method of the build_fn class must return a compiled Keras model.")
+    elif not isinstance(build_fn(), Model):
+        raise ContractException("The build_fn function must return a compiled Keras model.")
+
+    
     
